@@ -164,12 +164,12 @@ export default function About() {
             <h3 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">[ Personal Interests ]</h3>
             <div className="flex flex-wrap gap-2">
               {[
-                { name: 'Artificial Intelligence', icon: '🤖' },
-                { name: 'Machine Learning', icon: '🧠' },
-                { name: 'Reading', icon: '📚' },
-                { name: 'Exploring Technologies', icon: '🔍' },
-                { name: 'Travelling', icon: '✈️' },
-                { name: 'Music', icon: '🎵' },
+                { name: 'Artificial Intelligence', icon: '' },
+                { name: 'Machine Learning', icon: '' },
+                { name: 'Reading', icon: '' },
+                { name: 'Exploring Technologies', icon: '' },
+                { name: 'Travelling', icon: '️' },
+                { name: 'Music', icon: '' },
               ].map((interest) => (
                 <span 
                   key={interest.name} 

@@ -48,25 +48,25 @@ export default function Projects() {
       icon: Terminal,
       title: 'What it does',
       text: 'Personalized carbon footprint assessment with an interactive onboarding flow. Users get category-wise breakdowns, trend charts, and benchmarking against Indian averages.',
-      prefix: '🔍'
+      prefix: ''
     },
     {
       icon: Cpu,
       title: 'AI Layer',
       text: 'Gemini 2.0 Flash generates localized recommendations based on the user\'s actual lifestyle data — not generic global tips.',
-      prefix: '🤖'
+      prefix: ''
     },
     {
       icon: Trophy,
       title: 'Engagement',
       text: 'Gamification system with XP, streaks, achievements, and progression levels to drive consistent behavior change over time.',
-      prefix: '🎮'
+      prefix: ''
     },
     {
       icon: Users,
       title: 'Architecture',
       text: 'Multi-user support with fully isolated profiles, stats, and progress tracking.',
-      prefix: '👥'
+      prefix: ''
     }
   ]
 
