@@ -1,121 +1,140 @@
-import { motion } from 'framer-motion'
 import { GraduationCap } from 'lucide-react'
-
-const educationList = [
-  {
-    degree: 'B.Tech in Computer Engineering',
-    institution: "Marathwada Mitra Mandal's College of Engineering (MMCOE), Pune",
-    period: '2024 — 2028',
-    description: 'Focusing on computer science fundamentals, engineering systems, and developing advanced technical capabilities.',
-    highlights: [
-      'First Year CGPA: 8.59',
-      'Building foundations in Programming, Data Structures, Databases, and Software Development',
-      'Exploring Artificial Intelligence and Machine Learning',
-      'Actively pursuing certifications and practical learning'
-    ]
-  },
-  {
-    degree: 'Higher Secondary Education (12th Grade)',
-    institution: 'Dr. Kalmadi Shamarao Junior College, Pune',
-    period: 'Completed 2024',
-    description: 'Completed higher secondary education under the Science stream, focused on physics, chemistry, mathematics, and programming basics.',
-    highlights: [
-      'Score: 67.67%'
-    ]
-  },
-  {
-    degree: 'Secondary Education (10th Grade)',
-    institution: 'P. Jog English Medium School, Pune',
-    period: 'Completed 2022',
-    description: 'Completed secondary education with a strong academic performance in science, mathematics, and computing foundations.',
-    highlights: [
-      'Score: 88.20%'
-    ]
-  }
-]
+import { educationTimeline } from '../data/experience'
+import { useInView } from '../hooks/useInView'
+import AnimatedScore from './AnimatedScore'
 
 export default function Education() {
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.15,
-      },
-    },
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 15 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        ease: [0.16, 1, 0.3, 1],
-      },
-    },
-  }
+  const [sectionRef, isVisible] = useInView({ threshold: 0.1, once: true })
+  const revealClass = isVisible ? 'reveal-item is-visible' : 'reveal-item'
 
   return (
-    <section id="education" className="py-24 md:py-32 px-6 max-w-6xl mx-auto border-t border-zinc-200 dark:border-zinc-900">
+    <section
+      id="education"
+      ref={sectionRef}
+      className="py-24 md:py-32 px-6 max-w-6xl mx-auto border-t border-zinc-200 dark:border-zinc-900"
+    >
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
-        {/* Left Side: Title */}
-        <div className="lg:col-span-4 space-y-4">
+        {/* Left Column */}
+        <div className={`lg:col-span-4 space-y-4 ${revealClass}`}>
           <div className="font-mono text-xs uppercase tracking-widest text-zinc-500 flex items-center gap-2">
             <GraduationCap className="w-4 h-4" />
-            [ Education History ]
+            <span>[ Education History ]</span>
           </div>
           <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-950 dark:text-white leading-tight">
             Academic Timeline.
           </h2>
-          <p className="text-sm text-zinc-550 dark:text-zinc-500 font-light leading-relaxed max-w-xs">
-            A history of academic learning, score milestones, and core engineering fundamentals.
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 font-light leading-relaxed max-w-xs">
+            Chronological academic progression, institutions, and verified academic scores.
           </p>
         </div>
 
-        {/* Right Side: Timeline */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-100px' }}
-          className="lg:col-span-8 relative border-l border-zinc-200 dark:border-zinc-900 pl-6 md:pl-8 ml-2 space-y-12"
-        >
-          {educationList.map((edu, index) => (
-            <motion.div
-              key={`${edu.degree}-${edu.institution}`}
-              variants={itemVariants}
-              className="relative group"
-            >
-              {/* Timeline dot */}
-              <div className="absolute -left-[31px] md:-left-[39px] top-1.5 w-3.5 h-3.5 rounded-full border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-black group-hover:bg-zinc-950 dark:group-hover:bg-white group-hover:border-zinc-950 dark:group-hover:border-white transition-colors duration-300" />
+        {/* Right Column: Vertical Timeline */}
+        <div className="lg:col-span-8 relative pl-7 sm:pl-9 ml-1.5">
+          {/* Base Track */}
+          <div
+            aria-hidden="true"
+            className="absolute left-0 top-2 bottom-2 w-px bg-zinc-200 dark:bg-zinc-900"
+          />
+          {/* Animated Progress Fill */}
+          <div
+            aria-hidden="true"
+            className={`timeline-progress-line absolute left-0 top-2 bottom-2 w-px bg-zinc-900 dark:bg-zinc-300 ${
+              isVisible ? 'is-visible' : ''
+            }`}
+          />
 
-              <div className="space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <h3 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight">{edu.degree}</h3>
-                    <span className="text-xs font-mono text-zinc-500">@ {edu.institution}</span>
+          <ol className="space-y-9">
+            {educationTimeline.map((entry, index) => {
+              const verifiedSemesters = (entry.semesters || []).filter(
+                (sem) => sem.verified && typeof sem.sgpa === 'number'
+              )
+
+              return (
+                <li
+                  key={entry.id}
+                  className={`relative group ${revealClass}`}
+                  style={{ '--reveal-delay': `${80 + index * 95}ms` }}
+                >
+                  {/* Timeline Node */}
+                  <span
+                    aria-hidden="true"
+                    className={`absolute -left-[34px] sm:-left-[42px] top-1.5 w-3.5 h-3.5 rounded-full border transition-colors duration-300 flex items-center justify-center ${
+                      isVisible
+                        ? 'border-zinc-900 dark:border-white bg-zinc-50 dark:bg-black'
+                        : 'border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-black'
+                    }`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full transition-transform duration-300 ${
+                        isVisible
+                          ? 'bg-emerald-500 scale-100'
+                          : 'bg-zinc-400 scale-0'
+                      }`}
+                    />
+                  </span>
+
+                  <div className="space-y-3">
+                    {/* Degree & Period Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1.5 sm:gap-4">
+                      <h3 className="text-base sm:text-lg font-semibold text-zinc-950 dark:text-white tracking-tight">
+                        {entry.degree}
+                      </h3>
+                      <span className="text-xs font-mono text-zinc-500 dark:text-zinc-400 whitespace-nowrap shrink-0">
+                        {entry.period}
+                      </span>
+                    </div>
+
+                    {/* Institution */}
+                    <div className="text-xs font-mono text-zinc-600 dark:text-zinc-400">
+                      {entry.institution}
+                    </div>
+
+                    {/* Concise Summary */}
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 font-light leading-relaxed max-w-2xl">
+                      {entry.summary}
+                    </p>
+
+                    {/* Verified Scores Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 max-w-lg">
+                      {entry.scores.map((score) => (
+                        <AnimatedScore
+                          key={score.id}
+                          label={score.label}
+                          value={score.value}
+                          decimals={score.decimals}
+                          suffix={score.suffix}
+                          scale={score.scale}
+                          duration={900}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Verified Semester SGPA Records (rendered only when verified records exist) */}
+                    {verifiedSemesters.length > 0 && (
+                      <div className="pt-2 space-y-2">
+                        <span className="block text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+                          Verified Semester SGPA
+                        </span>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-w-lg">
+                          {verifiedSemesters.map((sem) => (
+                            <AnimatedScore
+                              key={sem.semester}
+                              label={sem.semester}
+                              value={sem.sgpa}
+                              decimals={2}
+                              scale={`/ ${sem.scale || 10}`}
+                              duration={850}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <span className="text-xs font-mono text-zinc-500 dark:text-zinc-400 sm:text-right">{edu.period}</span>
-                </div>
-
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 font-light leading-relaxed">
-                  {edu.description}
-                </p>
-
-                <ul className="space-y-1.5 pt-1">
-                  {edu.highlights.map((highlight, idx) => (
-                    <li key={idx} className="text-xs text-zinc-500 font-light flex items-start gap-2.5 leading-relaxed">
-                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-850 mt-1.5 shrink-0" />
-                      {highlight}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
+                </li>
+              )
+            })}
+          </ol>
+        </div>
       </div>
     </section>
   )
