@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Search, Award, ExternalLink, Calendar, Hash, FileText, CheckCircle, X } from 'lucide-react'
+import { gsap, MOTION_EASE, prefersReducedMotion } from '../lib/motion'
 
 const certificationsData = [
   {
@@ -123,8 +124,16 @@ export default function Certifications() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('all')
   const [selectedCert, setSelectedCert] = useState(null)
+  const [isClosingModal, setIsClosingModal] = useState(false)
+
+  const modalImageRef = useRef(null)
   const closeButtonRef = useRef(null)
   const lastTriggerRef = useRef(null)
+  const closeTimerRef = useRef(null)
+  const tabsContainerRef = useRef(null)
+  const tabButtonRefs = useRef({})
+  const tabPillRef = useRef(null)
+  const hasTabPillInitRef = useRef(false)
 
   const filteredCerts = certificationsData.filter((cert) => {
     const query = searchQuery.toLowerCase()
@@ -137,30 +146,134 @@ export default function Certifications() {
     return matchesSearch && matchesTab
   })
 
+  const updateTabPill = useCallback(
+    (immediate = false) => {
+      const pill = tabPillRef.current
+      const activeBtn = tabButtonRefs.current[activeTab]
+      if (!pill || !activeBtn) return
+
+      const reduced = prefersReducedMotion()
+      const target = {
+        x: activeBtn.offsetLeft,
+        y: activeBtn.offsetTop,
+        width: activeBtn.offsetWidth,
+        height: activeBtn.offsetHeight,
+      }
+
+      if (!hasTabPillInitRef.current || immediate || reduced) {
+        hasTabPillInitRef.current = true
+        gsap.set(pill, { ...target, opacity: 1 })
+        return
+      }
+
+      gsap.to(pill, {
+        ...target,
+        opacity: 1,
+        duration: 0.24,
+        ease: MOTION_EASE.reveal,
+        overwrite: 'auto',
+      })
+    },
+    [activeTab]
+  )
+
+  useLayoutEffect(() => {
+    updateTabPill(false)
+  }, [updateTabPill])
+
+  useEffect(() => {
+    const container = tabsContainerRef.current
+    if (!container || typeof ResizeObserver === 'undefined') return undefined
+
+    const observer = new ResizeObserver(() => {
+      updateTabPill(true)
+    })
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [updateTabPill])
+
+  const closeModal = useCallback(() => {
+    if (!selectedCert || isClosingModal) return
+
+    if (prefersReducedMotion()) {
+      setSelectedCert(null)
+      setIsClosingModal(false)
+      window.requestAnimationFrame(() => lastTriggerRef.current?.focus())
+      return
+    }
+
+    setIsClosingModal(true)
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current)
+    }
+    closeTimerRef.current = window.setTimeout(() => {
+      closeTimerRef.current = null
+      setSelectedCert(null)
+      setIsClosingModal(false)
+      window.requestAnimationFrame(() => {
+        lastTriggerRef.current?.focus()
+      })
+    }, 190)
+  }, [selectedCert, isClosingModal])
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current)
+      }
+    }
+  }, [])
+
   useEffect(() => {
     if (!selectedCert) return undefined
 
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
     closeButtonRef.current?.focus()
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
-        setSelectedCert(null)
-        lastTriggerRef.current?.focus()
+        closeModal()
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [selectedCert, closeModal])
+
+  // Subtle image-scale settling inside the certificate preview modal
+  useLayoutEffect(() => {
+    const imgEl = modalImageRef.current
+    if (!selectedCert || !imgEl || prefersReducedMotion()) return undefined
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        imgEl,
+        { scale: 0.985, opacity: 0.85 },
+        {
+          scale: 1,
+          opacity: 1,
+          duration: 0.24,
+          ease: MOTION_EASE.reveal,
+          clearProps: 'transform,opacity',
+        }
+      )
+    }, modalImageRef)
+
+    return () => ctx.revert()
   }, [selectedCert])
 
   const openModal = (cert, triggerEl) => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current)
+      closeTimerRef.current = null
+    }
+    setIsClosingModal(false)
     lastTriggerRef.current = triggerEl || document.activeElement
     setSelectedCert(cert)
-  }
-
-  const closeModal = () => {
-    setSelectedCert(null)
-    lastTriggerRef.current?.focus()
   }
 
   return (
@@ -182,17 +295,28 @@ export default function Certifications() {
 
         {/* Filters & Search */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-900 pb-6">
-          <div className="flex flex-wrap gap-2 p-1 bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 rounded-md self-start">
+          <div
+            ref={tabsContainerRef}
+            className="relative flex flex-wrap gap-2 p-1 bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 rounded-md self-start"
+          >
+            <span
+              ref={tabPillRef}
+              aria-hidden="true"
+              className="pointer-events-none absolute left-0 top-0 rounded bg-zinc-900 dark:bg-zinc-800 opacity-0"
+            />
             {filterTabs.map((tab) => {
               const isActive = activeTab === tab.id
               return (
                 <button
                   key={tab.id}
+                  ref={(el) => {
+                    tabButtonRefs.current[tab.id] = el
+                  }}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`text-xs font-mono px-3.5 py-2 rounded transition-colors duration-150 cursor-pointer ${
+                  className={`relative z-10 text-xs font-mono px-3.5 py-2 rounded transition-colors duration-150 cursor-pointer active:scale-[0.98] ${
                     isActive
-                      ? 'bg-zinc-900 text-white dark:bg-zinc-800 dark:text-white'
+                      ? 'text-white'
                       : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-200'
                   }`}
                 >
@@ -210,7 +334,7 @@ export default function Certifications() {
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search certs or issuers..."
               aria-label="Search certifications or issuers"
-              className="w-full bg-white dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-900 focus:border-zinc-400 dark:focus:border-zinc-700 text-zinc-950 dark:text-white rounded pl-9 pr-4 py-2 text-xs font-mono transition-colors duration-150 outline-none"
+              className="w-full bg-white dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-900 focus:border-zinc-400 dark:focus:border-zinc-600 text-zinc-950 dark:text-white rounded pl-9 pr-4 py-2 text-xs font-mono transition-colors duration-[160ms] outline-none"
             />
           </div>
         </div>
@@ -223,7 +347,7 @@ export default function Certifications() {
           {filteredCerts.map((cert) => (
             <article
               key={cert.id}
-              className="p-6 rounded-lg border border-zinc-200 dark:border-zinc-900 bg-white/70 dark:bg-zinc-950/30 hover:border-zinc-300 dark:hover:border-zinc-800 transition-colors duration-150 flex flex-col justify-between group h-full shadow-sm dark:shadow-none"
+              className="project-card-surface p-6 rounded-lg border border-zinc-200 dark:border-zinc-900 bg-white/70 dark:bg-zinc-950/30 hover:border-zinc-300 dark:hover:border-zinc-800 flex flex-col justify-between group h-full shadow-sm dark:shadow-none"
             >
               <div className="space-y-4">
                 {cert.previewImage && (
@@ -236,10 +360,10 @@ export default function Certifications() {
                     <img
                       src={cert.previewImage}
                       alt={cert.name}
-                      loading="lazy"
-                      className="w-full h-full object-cover object-top"
+                      decoding="async"
+                      className="project-card-media w-full h-full object-cover object-top"
                     />
-                    <span className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center justify-center text-[10px] font-mono text-white gap-1.5">
+                    <span className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity duration-[180ms] flex items-center justify-center text-[10px] font-mono text-white gap-1.5">
                       <FileText className="w-3.5 h-3.5" />
                       Click to view
                     </span>
@@ -292,7 +416,7 @@ export default function Certifications() {
                 <button
                   type="button"
                   onClick={(event) => openModal(cert, event.currentTarget)}
-                  className="text-[11px] text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white font-mono flex items-center gap-1.5 transition-colors duration-150 cursor-pointer"
+                  className="text-[11px] text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white font-mono flex items-center gap-1.5 transition-colors duration-150 cursor-pointer active:scale-[0.98]"
                 >
                   <FileText className="w-3.5 h-3.5 text-zinc-400" />
                   <span>View Certificate</span>
@@ -302,7 +426,7 @@ export default function Certifications() {
                     href={cert.verificationLink}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center gap-1.5 text-xs font-mono text-white dark:text-black bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 px-3 py-1.5 rounded transition-colors duration-150"
+                    className="flex items-center gap-1.5 text-xs font-mono text-white dark:text-black bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 px-3 py-1.5 rounded transition-[background-color,transform] duration-150 hover:-translate-y-px active:translate-y-0 active:scale-[0.98]"
                   >
                     <span>Verify</span>
                     <ExternalLink className="w-3 h-3" />
@@ -322,30 +446,35 @@ export default function Certifications() {
         </div>
       </div>
 
-      {/* Accessible Lightbox Modal */}
+      {/* Accessible Lightbox Modal with Open & Reverse Close Transitions */}
       {selectedCert && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label={selectedCert.name}
           onClick={closeModal}
-          className="modal-backdrop-enter fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 md:p-12 cursor-pointer"
+          className={`${
+            isClosingModal ? 'modal-backdrop-exit pointer-events-none' : 'modal-backdrop-enter'
+          } fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 md:p-12 cursor-pointer`}
         >
           <div
             onClick={(event) => event.stopPropagation()}
-            className="modal-dialog-enter relative max-w-4xl max-h-[85vh] overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex items-center justify-center cursor-default"
+            className={`${
+              isClosingModal ? 'modal-dialog-exit' : 'modal-dialog-enter'
+            } relative max-w-4xl max-h-[85vh] overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex items-center justify-center cursor-default`}
           >
             <img
+              ref={modalImageRef}
               src={selectedCert.previewImage}
               alt={selectedCert.name}
-              className="w-full h-auto max-h-[82vh] object-contain p-2"
+              className="w-full h-auto max-h-[82vh] object-contain p-2 will-change-transform"
             />
             <button
               ref={closeButtonRef}
               type="button"
               onClick={closeModal}
               aria-label="Close certificate preview"
-              className="absolute top-3 right-3 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white rounded-full p-2 border border-zinc-200 dark:border-zinc-800 transition-colors duration-150 cursor-pointer"
+              className="absolute top-3 right-3 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white rounded-full p-2 border border-zinc-200 dark:border-zinc-800 transition-[background-color,transform] duration-150 cursor-pointer active:scale-[0.95]"
             >
               <X className="w-4 h-4" />
             </button>
