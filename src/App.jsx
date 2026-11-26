@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
 import About from './components/About'
@@ -9,8 +10,10 @@ import Certifications from './components/Certifications'
 import Contact from './components/Contact'
 import Footer from './components/Footer'
 import ProjectCaseStudy from './components/ProjectCaseStudy'
+import CommandPalette from './components/CommandPalette'
 import { getProjectBySlug } from './data/projects'
 import { useReducedMotion } from './hooks/useReducedMotion'
+import { ScrollTrigger } from './lib/motion'
 
 const SECTION_IDS = ['hero', 'about', 'projects', 'skills', 'education', 'contact']
 
@@ -39,16 +42,38 @@ function parseLocation() {
   return { route: 'home', slug: null }
 }
 
+function clearSharedTransitionNames() {
+  if (typeof document === 'undefined') return
+  document.querySelectorAll('[data-shared-project-media]').forEach((el) => {
+    el.style.viewTransitionName = ''
+  })
+}
+
 export default function App() {
   const [locationState, setLocationState] = useState(parseLocation)
   const [activeSection, setActiveSection] = useState('hero')
+  const [fallbackTransitionKey, setFallbackTransitionKey] = useState(0)
+  const [transitionProjectSlug, setTransitionProjectSlug] = useState(null)
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false)
+
   const reducedMotion = useReducedMotion()
+  const locationStateRef = useRef(locationState)
+  const reducedMotionRef = useRef(reducedMotion)
+
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('theme') || 'dark'
     }
     return 'dark'
   })
+
+  useEffect(() => {
+    locationStateRef.current = locationState
+  }, [locationState])
+
+  useEffect(() => {
+    reducedMotionRef.current = reducedMotion
+  }, [reducedMotion])
 
   useEffect(() => {
     const root = window.document.documentElement
@@ -60,9 +85,112 @@ export default function App() {
     localStorage.setItem('theme', theme)
   }, [theme])
 
+  // Global Ctrl+K / Cmd+K shortcut for Command Palette
+  useEffect(() => {
+    const handleGlobalKeyDown = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setIsPaletteOpen((prev) => !prev)
+      }
+    }
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [])
+
+  const scrollToSection = useCallback((sectionId, instant = false) => {
+    const behavior = instant || reducedMotionRef.current ? 'instant' : 'smooth'
+    if (!sectionId || sectionId === 'hero') {
+      window.scrollTo({ top: 0, behavior })
+      return
+    }
+    const target = document.getElementById(sectionId)
+    if (target) {
+      target.scrollIntoView({ behavior })
+    }
+  }, [])
+
+  const commitRouteState = useCallback((nextState, postCommit, sharedSlug = null) => {
+    const prevState = locationStateRef.current
+    const isRouteSwitch =
+      nextState.route !== prevState.route || nextState.slug !== prevState.slug
+
+    if (!isRouteSwitch || reducedMotionRef.current) {
+      clearSharedTransitionNames()
+      setTransitionProjectSlug(null)
+      setLocationState(nextState)
+      if (postCommit) postCommit()
+      return
+    }
+
+    if (typeof document !== 'undefined' && typeof document.startViewTransition === 'function') {
+      clearSharedTransitionNames()
+
+      // Enable shared-image morph only for home <-> single project detail navigation
+      const isHomeToProject = prevState.route === 'home' && nextState.route === 'project'
+      const isProjectToHome = prevState.route === 'project' && nextState.route === 'home'
+
+      if (isHomeToProject && sharedSlug) {
+        const sourceCardMedia = document.querySelector(
+          `[data-shared-project-media="${sharedSlug}"]`
+        )
+        if (sourceCardMedia && !sourceCardMedia.closest('[hidden]')) {
+          sourceCardMedia.style.viewTransitionName = 'project-hero-image'
+        }
+      }
+
+      if (!isProjectToHome && prevState.route === 'project') {
+        const detailHero = document.querySelector('[data-case-shared-image]')
+        if (detailHero) detailHero.style.viewTransitionName = ''
+      }
+
+      const vt = document.startViewTransition(() => {
+        flushSync(() => {
+          setTransitionProjectSlug(isProjectToHome ? sharedSlug : null)
+          setLocationState(nextState)
+        })
+        if (postCommit) postCommit()
+      })
+
+      vt.finished.finally(() => {
+        clearSharedTransitionNames()
+        setTransitionProjectSlug(null)
+      })
+      return
+    }
+
+    setFallbackTransitionKey((prev) => prev + 1)
+    setLocationState(nextState)
+    if (postCommit) postCommit()
+  }, [])
+
   useEffect(() => {
     const syncLocation = () => {
-      setLocationState(parseLocation())
+      const prevState = locationStateRef.current
+      const nextState = parseLocation()
+      const sharedSlug =
+        prevState.route === 'project'
+          ? prevState.slug
+          : nextState.route === 'project'
+          ? nextState.slug
+          : null
+
+      commitRouteState(
+        nextState,
+        () => {
+          if (nextState.route === 'home') {
+            const rawHash = window.location.hash.replace('#', '')
+            if (rawHash && SECTION_IDS.includes(rawHash)) {
+              const target = document.getElementById(rawHash)
+              if (target) {
+                target.scrollIntoView({ behavior: 'instant' })
+                setActiveSection(rawHash)
+              }
+            }
+            window.requestAnimationFrame(() => ScrollTrigger.refresh())
+          }
+        },
+        sharedSlug
+      )
     }
 
     window.addEventListener('popstate', syncLocation)
@@ -71,7 +199,7 @@ export default function App() {
       window.removeEventListener('popstate', syncLocation)
       window.removeEventListener('hashchange', syncLocation)
     }
-  }, [])
+  }, [commitRouteState])
 
   // Handle initial hash target on cold load (e.g. /#education or /#projects)
   useEffect(() => {
@@ -82,55 +210,67 @@ export default function App() {
     const timer = window.setTimeout(() => {
       const target = document.getElementById(rawHash)
       if (target) {
-        target.scrollIntoView({ behavior: 'auto' })
+        target.scrollIntoView({ behavior: 'instant' })
         setActiveSection(rawHash)
+        ScrollTrigger.refresh()
       }
     }, 60)
 
     return () => window.clearTimeout(timer)
   }, [locationState.route])
 
-  // Scroll-spy for home navigation highlight
+  // Scroll-spy for home navigation highlight based on consistent reading line
   useEffect(() => {
     if (locationState.route !== 'home') return undefined
-    if (typeof IntersectionObserver === 'undefined') return undefined
 
-    const elements = SECTION_IDS.map((id) => document.getElementById(id)).filter(Boolean)
-    if (elements.length === 0) return undefined
+    let frameId = null
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
-        if (visible.length > 0) {
-          setActiveSection(visible[0].target.id)
-        }
-      },
-      {
-        rootMargin: '-25% 0px -55% 0px',
-        threshold: [0.1, 0.25, 0.5],
-      }
-    )
+    const updateActiveSection = () => {
+      frameId = null
+      const scrollY = window.scrollY
+      const viewportHeight = window.innerHeight
+      const docHeight = document.documentElement.scrollHeight
 
-    elements.forEach((el) => observer.observe(el))
-    return () => observer.disconnect()
-  }, [locationState.route])
-
-  const scrollToSection = useCallback(
-    (sectionId) => {
-      const behavior = reducedMotion ? 'auto' : 'smooth'
-      if (!sectionId || sectionId === 'hero') {
-        window.scrollTo({ top: 0, behavior })
+      if (scrollY < 80) {
+        setActiveSection((prev) => (prev === 'hero' ? prev : 'hero'))
         return
       }
-      const target = document.getElementById(sectionId)
-      if (target) {
-        target.scrollIntoView({ behavior })
+
+      if (scrollY + viewportHeight >= docHeight - 24) {
+        setActiveSection((prev) => (prev === 'contact' ? prev : 'contact'))
+        return
       }
-    },
-    [reducedMotion]
-  )
+
+      const readingOffset = viewportHeight * 0.34
+      let current = 'hero'
+
+      for (const id of SECTION_IDS) {
+        const el = document.getElementById(id)
+        if (!el) continue
+        const rect = el.getBoundingClientRect()
+        if (rect.top <= readingOffset) {
+          current = id
+        }
+      }
+
+      setActiveSection((prev) => (prev === current ? prev : current))
+    }
+
+    const onScrollOrResize = () => {
+      if (frameId === null) {
+        frameId = window.requestAnimationFrame(updateActiveSection)
+      }
+    }
+
+    updateActiveSection()
+    window.addEventListener('scroll', onScrollOrResize, { passive: true })
+    window.addEventListener('resize', onScrollOrResize, { passive: true })
+    return () => {
+      if (frameId !== null) window.cancelAnimationFrame(frameId)
+      window.removeEventListener('scroll', onScrollOrResize)
+      window.removeEventListener('resize', onScrollOrResize)
+    }
+  }, [locationState.route])
 
   const navigate = useCallback(
     (path, sectionId = null) => {
@@ -139,23 +279,48 @@ export default function App() {
         window.history.pushState({}, '', targetUrl)
       }
 
+      const prevState = locationStateRef.current
       const nextState = parseLocation()
-      setLocationState(nextState)
+      const isRouteSwitch =
+        nextState.route !== prevState.route || nextState.slug !== prevState.slug
+      const sharedSlug =
+        nextState.route === 'project'
+          ? nextState.slug
+          : prevState.route === 'project'
+          ? prevState.slug
+          : null
 
-      if (nextState.route === 'home') {
-        if (sectionId) {
-          setActiveSection(sectionId)
-          window.requestAnimationFrame(() => {
-            window.setTimeout(() => scrollToSection(sectionId), 30)
-          })
-        } else {
-          window.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' })
-        }
-      } else {
-        window.scrollTo({ top: 0, behavior: 'auto' })
-      }
+      commitRouteState(
+        nextState,
+        () => {
+          if (nextState.route === 'home') {
+            if (sectionId) {
+              setActiveSection(sectionId)
+              if (isRouteSwitch) {
+                scrollToSection(sectionId, true)
+                window.requestAnimationFrame(() => ScrollTrigger.refresh())
+              } else {
+                window.requestAnimationFrame(() => {
+                  window.setTimeout(() => scrollToSection(sectionId, false), 20)
+                })
+              }
+            } else {
+              window.scrollTo({
+                top: 0,
+                behavior: isRouteSwitch || reducedMotionRef.current ? 'instant' : 'smooth',
+              })
+              if (isRouteSwitch) {
+                window.requestAnimationFrame(() => ScrollTrigger.refresh())
+              }
+            }
+          } else {
+            window.scrollTo({ top: 0, behavior: 'instant' })
+          }
+        },
+        sharedSlug
+      )
     },
-    [reducedMotion, scrollToSection]
+    [commitRouteState, scrollToSection]
   )
 
   const openCaseStudy = useCallback(
@@ -165,9 +330,9 @@ export default function App() {
     [navigate]
   )
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
-  }
+  }, [])
 
   const activeProject =
     locationState.route === 'project' ? getProjectBySlug(locationState.slug) : null
@@ -180,9 +345,13 @@ export default function App() {
         onNavigate={navigate}
         theme={theme}
         toggleTheme={toggleTheme}
+        onOpenCommandPalette={() => setIsPaletteOpen(true)}
       />
 
-      <main>
+      <main
+        key={fallbackTransitionKey > 0 ? `vt-fallback-${fallbackTransitionKey}` : undefined}
+        className={fallbackTransitionKey > 0 ? 'route-enter' : undefined}
+      >
         {locationState.route === 'certifications' ? (
           <Certifications />
         ) : locationState.route === 'project' ? (
@@ -194,9 +363,12 @@ export default function App() {
           />
         ) : (
           <div className="space-y-12">
-            <Hero onNavigate={navigate} />
+            <Hero onNavigate={navigate} theme={theme} />
             <About />
-            <Projects onOpenCaseStudy={openCaseStudy} />
+            <Projects
+              onOpenCaseStudy={openCaseStudy}
+              transitionProjectSlug={transitionProjectSlug}
+            />
             <Skills />
             <Education />
             <Contact />
@@ -205,6 +377,15 @@ export default function App() {
       </main>
 
       <Footer />
+
+      <CommandPalette
+        isOpen={isPaletteOpen}
+        onClose={() => setIsPaletteOpen(false)}
+        onNavigate={navigate}
+        onSelectProject={openCaseStudy}
+        theme={theme}
+        toggleTheme={toggleTheme}
+      />
     </div>
   )
 }
