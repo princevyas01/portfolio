@@ -10,11 +10,9 @@
   --font-mono: 'Geist Mono', monospace;
 }
 
-/* Global transitions for theme toggling */
-*, *::before, *::after {
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 200ms;
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-smooth: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Custom Scrollbar */
@@ -42,20 +40,20 @@
   background: #3f3f46;
 }
 
-/* Base custom styles */
+/* Base styles */
 html {
   scroll-behavior: smooth;
 }
 
 body {
   background-color: #fafafa;
-  color: #3f3f46; /* zinc-700 */
+  color: #3f3f46;
   overflow-x: hidden;
 }
 
 .dark body {
   background-color: #000000;
-  color: #a1a1aa; /* zinc-400 */
+  color: #a1a1aa;
 }
 
 /* Focus rings */
@@ -67,3 +65,153 @@ body {
   outline: 1px solid #ffffff;
 }
 
+/* Motion System Keyframes */
+@keyframes hero-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tab-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Hero subtle staggered entrance */
+.hero-fade {
+  animation: hero-fade-in 300ms var(--ease-out-smooth) both;
+}
+
+.hero-rise {
+  animation: hero-rise 340ms var(--ease-out-expo) both;
+}
+
+.hero-delay-1 {
+  animation-delay: 35ms;
+}
+
+.hero-delay-2 {
+  animation-delay: 70ms;
+}
+
+.hero-delay-3 {
+  animation-delay: 105ms;
+}
+
+.hero-delay-4 {
+  animation-delay: 135ms;
+}
+
+.hero-delay-5 {
+  animation-delay: 170ms;
+}
+
+/* Scroll-triggered section reveal */
+.reveal-item {
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 420ms var(--ease-out-expo),
+    transform 420ms var(--ease-out-expo);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+.reveal-item.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Project category switch animation */
+.project-grid-enter {
+  animation: tab-panel-in 210ms var(--ease-out-smooth) both;
+}
+
+/* Modal transitions */
+.modal-backdrop-enter {
+  animation: modal-backdrop-in 180ms ease-out both;
+}
+
+.modal-dialog-enter {
+  animation: modal-dialog-in 210ms var(--ease-out-expo) both;
+}
+
+/* Education timeline progress line */
+.timeline-progress-line {
+  transform-origin: top;
+  transform: scaleY(0);
+  transition: transform 650ms var(--ease-out-expo);
+}
+
+.timeline-progress-line.is-visible {
+  transform: scaleY(1);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  .hero-fade,
+  .hero-rise,
+  .project-grid-enter,
+  .modal-backdrop-enter,
+  .modal-dialog-enter {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .reveal-item,
+  .reveal-item.is-visible {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .timeline-progress-line,
+  .timeline-progress-line.is-visible {
+    transform: scaleY(1) !important;
+    transition: none !important;
+  }
+}
