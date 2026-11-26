@@ -1,25 +1,48 @@
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRight, Mail, MapPin, Send, Check, AlertCircle } from 'lucide-react'
+import { profile } from '../data/profile'
+import { useInView } from '../hooks/useInView'
 
 export default function Contact() {
   const [formState, setFormState] = useState({ name: '', email: '', message: '' })
+  const [fieldErrors, setFieldErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [errorMessage, setErrorMessage] = useState(null)
+  const [sectionRef, isVisible] = useInView({ threshold: 0.08 })
+  const revealClass = isVisible ? 'reveal-item is-visible' : 'reveal-item'
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!formState.name || !formState.email || !formState.message) return
-    
-    setIsSubmitting(true)
+  const validate = () => {
+    const errors = {}
+    if (!formState.name.trim()) errors.name = 'Please enter your name.'
+    if (!formState.email.trim()) {
+      errors.email = 'Please enter your email address.'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formState.email.trim())) {
+      errors.email = 'Please enter a valid email address.'
+    }
+    if (!formState.message.trim()) errors.message = 'Please enter a message.'
+    setFieldErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleFieldChange = (field, value) => {
+    setFormState((prev) => ({ ...prev, [field]: value }))
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => ({ ...prev, [field]: undefined }))
+    }
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
     setErrorMessage(null)
     setIsSuccess(false)
 
-    // Honeypot spam check: if botcheck is checked, silent fail/ignore
-    if (e.target.botcheck && e.target.botcheck.checked) {
+    if (!validate()) return
+
+    setIsSubmitting(true)
+
+    if (event.target.botcheck && event.target.botcheck.checked) {
       setIsSubmitting(false)
-      // Act like it succeeded to throw off spam bots
       setIsSuccess(true)
       setFormState({ name: '', email: '', message: '' })
       return
@@ -27,7 +50,6 @@ export default function Contact() {
 
     const accessKey = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY
 
-    // Validation: make sure access key is present
     if (!accessKey || accessKey === 'your_access_key_here') {
       setIsSubmitting(false)
       setErrorMessage(
@@ -41,14 +63,14 @@ export default function Contact() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
         body: JSON.stringify({
           access_key: accessKey,
-          name: formState.name,
-          email: formState.email,
-          message: formState.message,
-          subject: `New Portfolio Contact Form Message from ${formState.name}`,
+          name: formState.name.trim(),
+          email: formState.email.trim(),
+          message: formState.message.trim(),
+          subject: `New Portfolio Contact Form Message from ${formState.name.trim()}`,
           from_name: 'Prince Vyas Portfolio',
         }),
       })
@@ -58,83 +80,70 @@ export default function Contact() {
       if (response.ok && result.success) {
         setIsSuccess(true)
         setFormState({ name: '', email: '', message: '' })
-        
-        // Reset success state after 5 seconds
         setTimeout(() => setIsSuccess(false), 5000)
       } else {
-        setErrorMessage(result.message || 'Submission failed. Please check your credentials and try again.')
+        setErrorMessage(
+          result.message || 'Submission failed. Please check your credentials and try again.'
+        )
       }
-    } catch (err) {
+    } catch {
       setErrorMessage('Network connection error. Please try again later.')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 15 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        ease: [0.16, 1, 0.3, 1],
-      },
-    },
-  }
-
   return (
-    <section id="contact" className="py-24 md:py-32 px-6 max-w-6xl mx-auto border-t border-zinc-200 dark:border-zinc-900">
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: '-100px' }}
-        className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16"
-      >
-        {/* Left Side: Text Details */}
+    <section
+      id="contact"
+      ref={sectionRef}
+      className="py-24 md:py-32 px-6 max-w-6xl mx-auto border-t border-zinc-200 dark:border-zinc-900"
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
+        {/* Left Column */}
         <div className="lg:col-span-5 space-y-6">
-          <motion.div variants={itemVariants} className="font-mono text-xs uppercase tracking-widest text-zinc-500">
+          <div className={`font-mono text-xs uppercase tracking-widest text-zinc-500 ${revealClass}`}>
             [ Connect ]
-          </motion.div>
-          <motion.h2 
-            variants={itemVariants} 
-            className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-950 dark:text-white leading-tight"
+          </div>
+          <h2
+            className={`text-3xl md:text-5xl font-bold tracking-tight text-zinc-950 dark:text-white leading-tight ${revealClass}`}
+            style={{ '--reveal-delay': '40ms' }}
           >
-            Let's start a conversation.
-          </motion.h2>
-          <motion.p variants={itemVariants} className="text-sm text-zinc-555 dark:text-zinc-400 font-light leading-relaxed max-w-sm">
-            Looking to connect for internships, academic collaborations, or just want to discuss Artificial Intelligence and Machine Learning? Feel free to reach out.
-          </motion.p>
+            Let&apos;s start a conversation.
+          </h2>
+          <p
+            className={`text-sm text-zinc-600 dark:text-zinc-400 font-light leading-relaxed max-w-sm ${revealClass}`}
+            style={{ '--reveal-delay': '80ms' }}
+          >
+            Open to internships, software engineering collaborations, and discussions on applied AI or Web3.
+          </p>
 
-          <motion.div variants={itemVariants} className="space-y-4 pt-4">
+          <div
+            className={`space-y-4 pt-3 ${revealClass}`}
+            style={{ '--reveal-delay': '120ms' }}
+          >
             <div className="flex items-center gap-3 text-xs font-mono">
-              <Mail className="w-4 h-4 text-zinc-400 dark:text-zinc-600" />
-              <a href="mailto:princevyas13456@gmail.com" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-colors">
-                princevyas13456@gmail.com
+              <Mail className="w-4 h-4 text-zinc-400 dark:text-zinc-600 shrink-0" />
+              <a
+                href={`mailto:${profile.email}`}
+                className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-colors duration-150"
+              >
+                {profile.email}
               </a>
             </div>
             <div className="flex items-center gap-3 text-xs font-mono text-zinc-600 dark:text-zinc-400">
-              <MapPin className="w-4 h-4 text-zinc-400 dark:text-zinc-600" />
-              <span>Pune, Maharashtra, India</span>
+              <MapPin className="w-4 h-4 text-zinc-400 dark:text-zinc-600 shrink-0" />
+              <span>{profile.location}</span>
             </div>
-          </motion.div>
+          </div>
         </div>
 
-        {/* Right Side: Form */}
-        <motion.div variants={itemVariants} className="lg:col-span-7 bg-white/50 dark:bg-zinc-950/20 border border-zinc-200 dark:border-zinc-900 p-6 md:p-8 rounded-lg shadow-sm dark:shadow-none">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Spam Protection Honeypot Checkbox (Hidden from users) */}
+        {/* Right Column: Form */}
+        <div
+          className={`lg:col-span-7 bg-white/70 dark:bg-zinc-950/30 border border-zinc-200 dark:border-zinc-900 p-6 md:p-8 rounded-lg shadow-sm dark:shadow-none ${revealClass}`}
+          style={{ '--reveal-delay': '90ms' }}
+        >
+          <form onSubmit={handleSubmit} noValidate className="space-y-5">
             <input
               type="checkbox"
               name="botcheck"
@@ -145,7 +154,10 @@ export default function Contact() {
             />
 
             <div className="space-y-1.5">
-              <label htmlFor="name" className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block">
+              <label
+                htmlFor="name"
+                className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block"
+              >
                 Name
               </label>
               <input
@@ -153,15 +165,29 @@ export default function Contact() {
                 type="text"
                 required
                 value={formState.name}
-                onChange={(e) => setFormState(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(event) => handleFieldChange('name', event.target.value)}
                 placeholder="Your Name"
-                className="w-full bg-white dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-900 focus:border-zinc-400 dark:focus:border-zinc-700 text-zinc-955 dark:text-white rounded p-3 text-xs font-mono transition-colors outline-none"
+                aria-invalid={Boolean(fieldErrors.name)}
+                aria-describedby={fieldErrors.name ? 'contact-name-error' : undefined}
+                className={`w-full bg-white dark:bg-zinc-950/50 border text-zinc-950 dark:text-white rounded p-3 text-xs font-mono transition-colors duration-150 outline-none ${
+                  fieldErrors.name
+                    ? 'border-red-500/70 focus:border-red-500'
+                    : 'border-zinc-200 dark:border-zinc-900 focus:border-zinc-400 dark:focus:border-zinc-700'
+                }`}
                 disabled={isSubmitting}
               />
+              {fieldErrors.name && (
+                <p id="contact-name-error" className="text-[11px] font-mono text-red-500 dark:text-red-400">
+                  {fieldErrors.name}
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="email" className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block">
+              <label
+                htmlFor="email"
+                className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block"
+              >
                 Email Address
               </label>
               <input
@@ -169,15 +195,29 @@ export default function Contact() {
                 type="email"
                 required
                 value={formState.email}
-                onChange={(e) => setFormState(prev => ({ ...prev, email: e.target.value }))}
+                onChange={(event) => handleFieldChange('email', event.target.value)}
                 placeholder="your.email@example.com"
-                className="w-full bg-white dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-900 focus:border-zinc-400 dark:focus:border-zinc-700 text-zinc-955 dark:text-white rounded p-3 text-xs font-mono transition-colors outline-none"
+                aria-invalid={Boolean(fieldErrors.email)}
+                aria-describedby={fieldErrors.email ? 'contact-email-error' : undefined}
+                className={`w-full bg-white dark:bg-zinc-950/50 border text-zinc-950 dark:text-white rounded p-3 text-xs font-mono transition-colors duration-150 outline-none ${
+                  fieldErrors.email
+                    ? 'border-red-500/70 focus:border-red-500'
+                    : 'border-zinc-200 dark:border-zinc-900 focus:border-zinc-400 dark:focus:border-zinc-700'
+                }`}
                 disabled={isSubmitting}
               />
+              {fieldErrors.email && (
+                <p id="contact-email-error" className="text-[11px] font-mono text-red-500 dark:text-red-400">
+                  {fieldErrors.email}
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="message" className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block">
+              <label
+                htmlFor="message"
+                className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block"
+              >
                 Message
               </label>
               <textarea
@@ -185,62 +225,69 @@ export default function Contact() {
                 rows={4}
                 required
                 value={formState.message}
-                onChange={(e) => setFormState(prev => ({ ...prev, message: e.target.value }))}
+                onChange={(event) => handleFieldChange('message', event.target.value)}
                 placeholder="Hi Prince, let's connect about..."
-                className="w-full bg-white dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-900 focus:border-zinc-400 dark:focus:border-zinc-700 text-zinc-955 dark:text-white rounded p-3 text-xs font-mono transition-colors resize-none outline-none"
+                aria-invalid={Boolean(fieldErrors.message)}
+                aria-describedby={fieldErrors.message ? 'contact-message-error' : undefined}
+                className={`w-full bg-white dark:bg-zinc-950/50 border text-zinc-950 dark:text-white rounded p-3 text-xs font-mono transition-colors duration-150 resize-none outline-none ${
+                  fieldErrors.message
+                    ? 'border-red-500/70 focus:border-red-500'
+                    : 'border-zinc-200 dark:border-zinc-900 focus:border-zinc-400 dark:focus:border-zinc-700'
+                }`}
                 disabled={isSubmitting}
               />
+              {fieldErrors.message && (
+                <p id="contact-message-error" className="text-[11px] font-mono text-red-500 dark:text-red-400">
+                  {fieldErrors.message}
+                </p>
+              )}
             </div>
 
             <div className="pt-2">
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={`w-full flex items-center justify-center gap-2 text-xs font-mono py-3 px-4 rounded transition-all font-medium cursor-pointer ${
+                className={`group w-full flex items-center justify-center gap-2 text-xs font-mono py-3 px-4 rounded transition-colors duration-150 font-medium cursor-pointer ${
                   isSuccess
-                    ? 'bg-emerald-500 text-white'
+                    ? 'bg-emerald-600 text-white'
                     : 'bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black disabled:bg-zinc-100 disabled:text-zinc-400 dark:disabled:bg-zinc-900 dark:disabled:text-zinc-600'
                 }`}
               >
                 {isSubmitting ? (
                   <>
-                    <Send className="w-3.5 h-3.5 animate-pulse" />
-                    Sending Message...
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Sending Message...</span>
                   </>
                 ) : isSuccess ? (
                   <>
                     <Check className="w-3.5 h-3.5" />
-                    Message Sent Successfully
+                    <span>Message Sent Successfully</span>
                   </>
                 ) : (
                   <>
-                    Send Message
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <span>Send Message</span>
+                    <ArrowRight className="w-3.5 h-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
                   </>
                 )}
               </button>
             </div>
 
-            {/* Error Message Box */}
-            <AnimatePresence>
-              {errorMessage && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="flex items-start gap-2.5 bg-red-950/20 border border-red-900/50 text-red-400 p-4 rounded text-xs font-mono mt-3"
-                >
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-semibold block mb-0.5">Submission Error</span>
-                    {errorMessage}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {errorMessage && (
+              <div
+                role="alert"
+                aria-live="polite"
+                className="flex items-start gap-2.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-400 p-4 rounded text-xs font-mono mt-3"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold block mb-0.5">Submission Error</span>
+                  {errorMessage}
+                </div>
+              </div>
+            )}
           </form>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </section>
   )
 }
