@@ -1,15 +1,33 @@
 <!doctype html>
-<html lang="en" class="scroll-smooth">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="I'm Prince Vyas, a Computer Engineering student with a strong interest in Artificial Intelligence and Machine Learning. I enjoy building projects, learning new technologies, and improving my skills in software development. This portfolio showcases my projects, certifications, technical skills, and learning journey." />
-    <meta name="keywords" content="Prince Vyas, AI, Machine Learning, Artificial Intelligence, Python, MongoDB, Java, C++, Computer Engineering, Student Developer, Software Development, Programming, AI Projects, Portfolio" />
+    <meta name="description" content="Prince Vyas — Computer Engineering student at MMCOE, Pune building practical software and applied AI applications, while exploring Web3 and decentralized technologies." />
+    <meta name="keywords" content="Prince Vyas, Computer Engineering, Software Development, Applied AI, Machine Learning, React, Flutter, FastAPI, PyTorch, Web3, Portfolio" />
     <meta name="author" content="Prince Vyas" />
-    <title>Prince Vyas — AI & Machine Learning Enthusiast | Computer Engineering Student</title>
+    <title>Prince Vyas — Computer Engineering &amp; Applied AI</title>
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('theme') || 'dark';
+          if (saved === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+          var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          if (!reduced) {
+            document.documentElement.style.scrollBehavior = 'smooth';
+          }
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
   </head>
-  <body class="bg-black text-zinc-400 antialiased selection:bg-white selection:text-black min-h-screen">
+  <body class="bg-zinc-50 dark:bg-black text-zinc-700 dark:text-zinc-400 antialiased selection:bg-zinc-900 selection:text-white dark:selection:bg-white dark:selection:text-black min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
