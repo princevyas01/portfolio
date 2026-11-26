@@ -1,19 +1,100 @@
+import { useEffect, useRef } from 'react'
 import { ArrowRight, ExternalLink } from 'lucide-react'
 import { GithubIcon } from './icons'
+import { attachMagnetic, attachPointerParallax, attachSpotlight } from '../lib/motion'
 
-export default function ProjectCard({ project, onOpenCaseStudy }) {
+export default function ProjectCard({
+  project,
+  onOpenCaseStudy,
+  isVisible = true,
+  isSharedTransitionActive = false,
+  onPreviewShow,
+  onPreviewMove,
+  onPreviewHide,
+}) {
+  const cardRef = useRef(null)
+  const mediaFrameRef = useRef(null)
+  const mediaImgRef = useRef(null)
+  const caseStudyLinkRef = useRef(null)
+
+  useEffect(() => {
+    if (!isVisible) return undefined
+
+    const cleanups = [
+      attachSpotlight(cardRef.current),
+      attachPointerParallax(mediaFrameRef.current, mediaImgRef.current, {
+        range: 4,
+        hoverScale: 1.032,
+        duration: 0.34,
+      }),
+      attachMagnetic(caseStudyLinkRef.current, {
+        strength: 4.5,
+        innerStrength: 1.5,
+        duration: 0.3,
+      }),
+    ]
+
+    return () => cleanups.forEach((fn) => fn())
+  }, [isVisible])
+
   const handleCaseStudy = (event) => {
     event.preventDefault()
+    onPreviewHide?.()
     onOpenCaseStudy(project.slug)
   }
 
+  const handleTriggerPointerEnter = (event) => {
+    if (event.pointerType === 'touch') return
+    onPreviewShow?.(project, { x: event.clientX, y: event.clientY, mode: 'pointer' })
+  }
+
+  const handleTriggerPointerMove = (event) => {
+    if (event.pointerType === 'touch') return
+    onPreviewMove?.(event.clientX, event.clientY)
+  }
+
+  const handleTriggerPointerLeave = () => {
+    onPreviewHide?.()
+  }
+
+  const handleTriggerFocus = (event) => {
+    // Only show keyboard floating preview when focus enters via keyboard navigation
+    if (event.currentTarget.matches(':focus-visible')) {
+      const rect = event.currentTarget.getBoundingClientRect()
+      onPreviewShow?.(project, {
+        x: rect.right,
+        y: rect.top,
+        mode: 'keyboard',
+      })
+    }
+  }
+
+  const handleTriggerBlur = () => {
+    onPreviewHide?.()
+  }
+
   return (
-    <article className="group flex flex-col h-full rounded-xl border border-zinc-200 dark:border-zinc-800/90 bg-white/80 dark:bg-zinc-950/60 hover:border-zinc-300 dark:hover:border-zinc-700 md:hover:-translate-y-0.5 transition-[border-color,transform] duration-200 ease-out overflow-hidden">
-      {/* Consistent Media Frame */}
+    <article
+      ref={cardRef}
+      data-flip-id={project.slug}
+      hidden={!isVisible}
+      aria-hidden={!isVisible}
+      style={isVisible ? undefined : { display: 'none' }}
+      className="spotlight-card project-card-surface group flex flex-col h-full rounded-xl border border-zinc-200 dark:border-zinc-800/90 bg-white/80 dark:bg-zinc-950/60 hover:border-zinc-300 dark:hover:border-zinc-700 overflow-hidden"
+    >
+      {/* Pointer-Reactive Fixed Media Frame & Shared View Transition Target */}
       <a
+        ref={mediaFrameRef}
         href={`/projects/${project.slug}`}
         onClick={handleCaseStudy}
+        tabIndex={isVisible ? 0 : -1}
         aria-label={`Open ${project.title} case study`}
+        data-shared-project-media={project.slug}
+        style={
+          isSharedTransitionActive && isVisible
+            ? { viewTransitionName: 'project-hero-image' }
+            : undefined
+        }
         className={`relative aspect-[16/10] w-full overflow-hidden border-b border-zinc-200 dark:border-zinc-800/80 block shrink-0 ${
           project.imageFit === 'contain'
             ? 'bg-zinc-100 dark:bg-zinc-950 p-3 flex items-center justify-center'
@@ -21,15 +102,16 @@ export default function ProjectCard({ project, onOpenCaseStudy }) {
         }`}
       >
         <img
+          ref={mediaImgRef}
           src={project.image}
           alt={project.imageAlt}
-          loading="lazy"
+          decoding="async"
           className={
             project.imageFit === 'contain'
-              ? `max-w-full max-h-full object-contain transition-transform duration-200 ease-out group-hover:scale-[1.018] ${
+              ? `max-w-full max-h-full object-contain will-change-transform select-none ${
                   project.isAppIcon ? 'rounded-2xl bg-white p-1 shadow-sm max-h-[84%]' : 'rounded-md'
                 }`
-              : 'w-full h-full object-cover object-top transition-transform duration-200 ease-out group-hover:scale-[1.018]'
+              : 'w-full h-full object-cover object-top will-change-transform select-none'
           }
         />
       </a>
@@ -42,12 +124,18 @@ export default function ProjectCard({ project, onOpenCaseStudy }) {
           <span>{project.year}</span>
         </div>
 
-        {/* Title */}
+        {/* Title (triggers floating project preview on hover / keyboard focus) */}
         <h3 className="mt-2 text-lg font-semibold tracking-tight text-zinc-950 dark:text-white leading-snug">
           <a
             href={`/projects/${project.slug}`}
             onClick={handleCaseStudy}
-            className="hover:underline underline-offset-4 decoration-zinc-400 dark:decoration-zinc-600"
+            onPointerEnter={handleTriggerPointerEnter}
+            onPointerMove={handleTriggerPointerMove}
+            onPointerLeave={handleTriggerPointerLeave}
+            onFocus={handleTriggerFocus}
+            onBlur={handleTriggerBlur}
+            tabIndex={isVisible ? 0 : -1}
+            className="inline-block hover:underline underline-offset-4 decoration-zinc-400 dark:decoration-zinc-600"
           >
             {project.title}
           </a>
@@ -75,12 +163,21 @@ export default function ProjectCard({ project, onOpenCaseStudy }) {
           {/* Action Links */}
           <div className="mt-4 pt-3.5 border-t border-zinc-200/80 dark:border-zinc-900 flex items-center justify-between gap-3">
             <a
+              ref={caseStudyLinkRef}
               href={`/projects/${project.slug}`}
               onClick={handleCaseStudy}
-              className="inline-flex items-center gap-1.5 text-xs font-mono font-medium text-zinc-950 dark:text-white hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors duration-150 group/link"
+              onPointerEnter={handleTriggerPointerEnter}
+              onPointerMove={handleTriggerPointerMove}
+              onPointerLeave={handleTriggerPointerLeave}
+              onFocus={handleTriggerFocus}
+              onBlur={handleTriggerBlur}
+              tabIndex={isVisible ? 0 : -1}
+              className="project-card-link inline-flex items-center gap-1.5 text-xs font-mono font-medium text-zinc-950 dark:text-white hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors duration-150"
             >
-              <span>Case Study</span>
-              <ArrowRight className="w-3.5 h-3.5 transition-transform duration-150 group-hover/link:translate-x-0.5" />
+              <span data-magnetic-inner className="inline-flex items-center gap-1.5">
+                <span>Case Study</span>
+                <ArrowRight className="project-card-arrow w-3.5 h-3.5" />
+              </span>
             </a>
 
             <div className="flex items-center gap-3">
@@ -89,6 +186,7 @@ export default function ProjectCard({ project, onOpenCaseStudy }) {
                   href={project.liveUrl}
                   target="_blank"
                   rel="noreferrer"
+                  tabIndex={isVisible ? 0 : -1}
                   aria-label={`${project.title} live demo`}
                   className="inline-flex items-center gap-1 text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-colors duration-150"
                 >
@@ -100,6 +198,7 @@ export default function ProjectCard({ project, onOpenCaseStudy }) {
                 href={project.githubUrl}
                 target="_blank"
                 rel="noreferrer"
+                tabIndex={isVisible ? 0 : -1}
                 aria-label={`${project.title} GitHub repository`}
                 className="inline-flex items-center gap-1 text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-colors duration-150"
               >
