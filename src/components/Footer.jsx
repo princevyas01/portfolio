@@ -1,5 +1,6 @@
 import { ArrowUp } from 'lucide-react'
 import { useReducedMotion } from '../hooks/useReducedMotion'
+import ElasticDivider from './ElasticDivider'
 
 export default function Footer() {
   const currentYear = new Date().getFullYear()
@@ -8,12 +9,13 @@ export default function Footer() {
   const scrollToTop = () => {
     window.scrollTo({
       top: 0,
-      behavior: reducedMotion ? 'auto' : 'smooth',
+      behavior: reducedMotion ? 'instant' : 'smooth',
     })
   }
 
   return (
-    <footer className="py-12 px-6 max-w-6xl mx-auto border-t border-zinc-200 dark:border-zinc-900">
+    <footer className="relative py-12 px-6 max-w-6xl mx-auto">
+      <ElasticDivider />
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-[11px] font-mono text-zinc-500">
         <div>
           <span>© {currentYear} Prince Vyas. All rights reserved.</span>
