@@ -1,105 +1,97 @@
-import { motion } from 'framer-motion'
-import { Code, Database, Sparkles } from 'lucide-react'
+import { Code, Layers, Database, Cpu, Compass } from 'lucide-react'
+import { skillCategories, exploringSkills } from '../data/skills'
+import { useInView } from '../hooks/useInView'
 
-const skillCategories = [
-  {
-    title: 'Programming Languages',
-    icon: Code,
-    skills: ['Python', 'Java (Basic)', 'C (Basic)', 'C++ (Basic)'],
-  },
-  {
-    title: 'Databases',
-    icon: Database,
-    skills: ['SQL (Basic)', 'MongoDB (Basic)'],
-  },
-  {
-    title: 'Areas of Interest',
-    icon: Sparkles,
-    skills: [
-      'Artificial Intelligence',
-      'Machine Learning',
-      'Data Analysis',
-      'Emerging Technologies'
-    ],
-  },
-]
+const categoryIcons = {
+  programming: Code,
+  development: Layers,
+  databases: Database,
+  'applied-ai': Cpu,
+}
 
 export default function Skills() {
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 15 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        ease: [0.16, 1, 0.3, 1],
-      },
-    },
-  }
+  const [sectionRef, isVisible] = useInView({ threshold: 0.08 })
+  const revealClass = isVisible ? 'reveal-item is-visible' : 'reveal-item'
 
   return (
-    <section id="skills" className="py-24 md:py-32 px-6 max-w-6xl mx-auto border-t border-zinc-200 dark:border-zinc-900">
-      <div className="space-y-16">
+    <section
+      id="skills"
+      ref={sectionRef}
+      className="py-24 md:py-32 px-6 max-w-6xl mx-auto border-t border-zinc-200 dark:border-zinc-900"
+    >
+      <div className="space-y-12">
         {/* Section Heading */}
-        <div className="space-y-4 max-w-xl">
-          <div className="font-mono text-xs uppercase tracking-widest text-zinc-500">[ Technical Toolkit ]</div>
+        <div className={`space-y-4 max-w-xl ${revealClass}`}>
+          <div className="font-mono text-xs uppercase tracking-widest text-zinc-500">
+            [ Technical Toolkit ]
+          </div>
           <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-950 dark:text-white leading-tight">
-            Current Abilities & Interests.
+            Skills &amp; Technical Stack.
           </h2>
-          <p className="text-sm text-zinc-550 dark:text-zinc-500 font-light leading-relaxed">
-            A precise summary of the programming languages and databases I have actually worked with, along with my primary learning domains.
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 font-light leading-relaxed">
+            Languages, frameworks, local databases, and AI tooling used across shipped applications and engineering prototypes.
           </p>
         </div>
 
-        {/* Categories Grid */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-100px' }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6"
-        >
-          {skillCategories.map((category) => {
-            const Icon = category.icon
+        {/* Core Skill Categories Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {skillCategories.map((category, index) => {
+            const Icon = categoryIcons[category.id] || Code
             return (
-              <motion.div
-                key={category.title}
-                variants={itemVariants}
-                className="p-6 rounded-lg border border-zinc-200 dark:border-zinc-900 bg-white/50 dark:bg-zinc-950/20 hover:border-zinc-350 dark:hover:border-zinc-800 transition-colors flex flex-col justify-between shadow-sm dark:shadow-none"
+              <div
+                key={category.id}
+                className={`p-5 rounded-lg border border-zinc-200 dark:border-zinc-900 bg-white/70 dark:bg-zinc-950/30 hover:border-zinc-300 dark:hover:border-zinc-800 transition-colors duration-150 flex flex-col ${revealClass}`}
+                style={{ '--reveal-delay': `${60 + index * 45}ms` }}
               >
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-900 pb-3">
-                    <Icon className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
-                    <h3 className="text-sm font-mono text-zinc-850 dark:text-white tracking-wider uppercase">
-                      {category.title}
-                    </h3>
-                  </div>
-                  <ul className="space-y-2">
-                    {category.skills.map((skill) => (
-                      <li
-                        key={skill}
-                        className="text-xs text-zinc-600 dark:text-zinc-400 font-light flex items-center gap-2"
-                      >
-                        <span className="w-1 h-1 rounded-full bg-zinc-350 dark:bg-zinc-700" />
-                        {skill}
-                      </li>
-                    ))}
-                  </ul>
+                <div className="flex items-center gap-2.5 border-b border-zinc-200/80 dark:border-zinc-900 pb-3 mb-4">
+                  <Icon className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
+                  <h3 className="text-xs font-mono text-zinc-900 dark:text-white tracking-wider uppercase font-medium">
+                    {category.title}
+                  </h3>
                 </div>
-              </motion.div>
+                <div className="flex flex-wrap gap-2">
+                  {category.skills.map((skill) => (
+                    <span
+                      key={skill}
+                      className="px-2.5 py-1 text-xs font-mono rounded border border-zinc-200 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-900/50 text-zinc-700 dark:text-zinc-300"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
             )
           })}
-        </motion.div>
+        </div>
+
+        {/* Separate Exploring Subsection */}
+        <div
+          className={`p-5 rounded-lg border border-zinc-200 dark:border-zinc-900 bg-zinc-100/60 dark:bg-zinc-950/40 flex flex-col md:flex-row md:items-center justify-between gap-4 ${revealClass}`}
+          style={{ '--reveal-delay': '240ms' }}
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+              <Compass className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+              <h3 className="text-xs font-mono text-zinc-900 dark:text-white uppercase tracking-wider font-medium">
+                {exploringSkills.title}
+              </h3>
+            </div>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 font-light">
+              {exploringSkills.note}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            {exploringSkills.items.map((item) => (
+              <span
+                key={item}
+                className="px-3 py-1.5 text-xs font-mono rounded border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   )
