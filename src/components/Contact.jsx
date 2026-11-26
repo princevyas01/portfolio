@@ -1,7 +1,9 @@
-import { useState } from 'react'
-import { ArrowRight, Mail, MapPin, Send, Check, AlertCircle } from 'lucide-react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { ArrowRight, Mail, MapPin, Check, AlertCircle, Loader2, Copy } from 'lucide-react'
 import { profile } from '../data/profile'
-import { useInView } from '../hooks/useInView'
+import ElasticDivider from './ElasticDivider'
+import ScrambleLabel from './ScrambleLabel'
+import { attachMagnetic, attachSpotlight, gsap, MOTION_DURATION, MOTION_EASE } from '../lib/motion'
 
 export default function Contact() {
   const [formState, setFormState] = useState({ name: '', email: '', message: '' })
@@ -9,8 +11,95 @@ export default function Contact() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [errorMessage, setErrorMessage] = useState(null)
-  const [sectionRef, isVisible] = useInView({ threshold: 0.08 })
-  const revealClass = isVisible ? 'reveal-item is-visible' : 'reveal-item'
+  const [emailCopied, setEmailCopied] = useState(false)
+  const sectionRef = useRef(null)
+  const submitButtonRef = useRef(null)
+  const formCardRef = useRef(null)
+  const copyTimerRef = useRef(null)
+
+  useEffect(() => {
+    const cleanupMagnetic = attachMagnetic(submitButtonRef.current, {
+      strength: 5,
+      innerStrength: 1.5,
+      duration: 0.3,
+    })
+    const cleanupSpotlight = attachSpotlight(formCardRef.current)
+    return () => {
+      cleanupMagnetic()
+      cleanupSpotlight()
+      if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current)
+    }
+  }, [])
+
+  const handleCopyEmail = async () => {
+    try {
+      await navigator.clipboard?.writeText(profile.email)
+    } catch {
+      // Fallback if clipboard API blocked in sandboxed environments
+    }
+    setEmailCopied(true)
+    if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current)
+    copyTimerRef.current = window.setTimeout(() => {
+      copyTimerRef.current = null
+      setEmailCopied(false)
+    }, 2000)
+  }
+
+  useLayoutEffect(() => {
+    const mm = gsap.matchMedia()
+
+    mm.add(
+      {
+        reduceMotion: '(prefers-reduced-motion: reduce)',
+        normal: '(prefers-reduced-motion: no-preference)',
+      },
+      (context) => {
+        const { reduceMotion } = context.conditions
+
+        if (reduceMotion) {
+          gsap.set('[data-contact-left], [data-contact-form]', { clearProps: 'all' })
+          return
+        }
+
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: sectionRef.current,
+            start: 'top 84%',
+            once: true,
+          },
+        })
+
+        tl.fromTo(
+          '[data-contact-left]',
+          { opacity: 0, y: 12 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: MOTION_DURATION.section,
+            ease: MOTION_EASE.reveal,
+            clearProps: 'transform,opacity',
+          },
+          0
+        )
+
+        tl.fromTo(
+          '[data-contact-form]',
+          { opacity: 0, y: 14 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: MOTION_DURATION.section,
+            ease: MOTION_EASE.reveal,
+            clearProps: 'transform,opacity',
+          },
+          0.08
+        )
+      },
+      sectionRef
+    )
+
+    return () => mm.revert()
+  }, [])
 
   const validate = () => {
     const errors = {}
@@ -30,10 +119,15 @@ export default function Contact() {
     if (fieldErrors[field]) {
       setFieldErrors((prev) => ({ ...prev, [field]: undefined }))
     }
+    if (errorMessage) {
+      setErrorMessage(null)
+    }
   }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (isSubmitting) return
+
     setErrorMessage(null)
     setIsSuccess(false)
 
@@ -97,39 +191,50 @@ export default function Contact() {
     <section
       id="contact"
       ref={sectionRef}
-      className="py-24 md:py-32 px-6 max-w-6xl mx-auto border-t border-zinc-200 dark:border-zinc-900"
+      className="relative py-24 md:py-32 px-6 max-w-6xl mx-auto"
     >
+      <ElasticDivider />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
         {/* Left Column */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className={`font-mono text-xs uppercase tracking-widest text-zinc-500 ${revealClass}`}>
-            [ Connect ]
+        <div data-contact-left className="lg:col-span-5 space-y-6">
+          <div className="font-mono text-xs uppercase tracking-widest text-zinc-500">
+            <ScrambleLabel text="[ Connect ]" />
           </div>
-          <h2
-            className={`text-3xl md:text-5xl font-bold tracking-tight text-zinc-950 dark:text-white leading-tight ${revealClass}`}
-            style={{ '--reveal-delay': '40ms' }}
-          >
+          <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-950 dark:text-white leading-tight">
             Let&apos;s start a conversation.
           </h2>
-          <p
-            className={`text-sm text-zinc-600 dark:text-zinc-400 font-light leading-relaxed max-w-sm ${revealClass}`}
-            style={{ '--reveal-delay': '80ms' }}
-          >
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 font-light leading-relaxed max-w-sm">
             Open to internships, software engineering collaborations, and discussions on applied AI or Web3.
           </p>
 
-          <div
-            className={`space-y-4 pt-3 ${revealClass}`}
-            style={{ '--reveal-delay': '120ms' }}
-          >
+          <div className="space-y-4 pt-3">
             <div className="flex items-center gap-3 text-xs font-mono">
               <Mail className="w-4 h-4 text-zinc-400 dark:text-zinc-600 shrink-0" />
-              <a
-                href={`mailto:${profile.email}`}
-                className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-colors duration-150"
+              <button
+                type="button"
+                onClick={handleCopyEmail}
+                aria-label={emailCopied ? 'Email copied to clipboard' : `Copy email address ${profile.email}`}
+                className="group inline-flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-colors duration-150 cursor-pointer text-left"
               >
-                {profile.email}
-              </a>
+                <span className="underline decoration-zinc-300 dark:decoration-zinc-800 underline-offset-4 group-hover:decoration-zinc-500">
+                  {profile.email}
+                </span>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-800 bg-zinc-100/70 dark:bg-zinc-900/70 text-[10px]">
+                  {emailCopied ? (
+                    <>
+                      <Check className="feedback-enter w-3 h-3 text-emerald-500" />
+                      <span className="feedback-enter text-emerald-600 dark:text-emerald-400 font-medium">
+                        Copied
+                      </span>
+                    </>
+                  ) : (
+                    <Copy className="w-3 h-3 text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors duration-150" />
+                  )}
+                </span>
+              </button>
+              <span className="sr-only" aria-live="polite">
+                {emailCopied ? `Copied ${profile.email}` : ''}
+              </span>
             </div>
             <div className="flex items-center gap-3 text-xs font-mono text-zinc-600 dark:text-zinc-400">
               <MapPin className="w-4 h-4 text-zinc-400 dark:text-zinc-600 shrink-0" />
@@ -140,8 +245,9 @@ export default function Contact() {
 
         {/* Right Column: Form */}
         <div
-          className={`lg:col-span-7 bg-white/70 dark:bg-zinc-950/30 border border-zinc-200 dark:border-zinc-900 p-6 md:p-8 rounded-lg shadow-sm dark:shadow-none ${revealClass}`}
-          style={{ '--reveal-delay': '90ms' }}
+          ref={formCardRef}
+          data-contact-form
+          className="spotlight-card lg:col-span-7 bg-white/70 dark:bg-zinc-950/30 border border-zinc-200 dark:border-zinc-900 p-6 md:p-8 rounded-lg shadow-sm dark:shadow-none"
         >
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
             <input
@@ -169,15 +275,18 @@ export default function Contact() {
                 placeholder="Your Name"
                 aria-invalid={Boolean(fieldErrors.name)}
                 aria-describedby={fieldErrors.name ? 'contact-name-error' : undefined}
-                className={`w-full bg-white dark:bg-zinc-950/50 border text-zinc-950 dark:text-white rounded p-3 text-xs font-mono transition-colors duration-150 outline-none ${
+                className={`w-full bg-white dark:bg-zinc-950/50 border text-zinc-950 dark:text-white rounded p-3 text-xs font-mono transition-[border-color,background-color] duration-[160ms] ease-out outline-none ${
                   fieldErrors.name
                     ? 'border-red-500/70 focus:border-red-500'
-                    : 'border-zinc-200 dark:border-zinc-900 focus:border-zinc-400 dark:focus:border-zinc-700'
+                    : 'border-zinc-200 dark:border-zinc-900 focus:border-zinc-500 dark:focus:border-zinc-600'
                 }`}
                 disabled={isSubmitting}
               />
               {fieldErrors.name && (
-                <p id="contact-name-error" className="text-[11px] font-mono text-red-500 dark:text-red-400">
+                <p
+                  id="contact-name-error"
+                  className="feedback-enter text-[11px] font-mono text-red-500 dark:text-red-400"
+                >
                   {fieldErrors.name}
                 </p>
               )}
@@ -199,15 +308,18 @@ export default function Contact() {
                 placeholder="your.email@example.com"
                 aria-invalid={Boolean(fieldErrors.email)}
                 aria-describedby={fieldErrors.email ? 'contact-email-error' : undefined}
-                className={`w-full bg-white dark:bg-zinc-950/50 border text-zinc-950 dark:text-white rounded p-3 text-xs font-mono transition-colors duration-150 outline-none ${
+                className={`w-full bg-white dark:bg-zinc-950/50 border text-zinc-950 dark:text-white rounded p-3 text-xs font-mono transition-[border-color,background-color] duration-[160ms] ease-out outline-none ${
                   fieldErrors.email
                     ? 'border-red-500/70 focus:border-red-500'
-                    : 'border-zinc-200 dark:border-zinc-900 focus:border-zinc-400 dark:focus:border-zinc-700'
+                    : 'border-zinc-200 dark:border-zinc-900 focus:border-zinc-500 dark:focus:border-zinc-600'
                 }`}
                 disabled={isSubmitting}
               />
               {fieldErrors.email && (
-                <p id="contact-email-error" className="text-[11px] font-mono text-red-500 dark:text-red-400">
+                <p
+                  id="contact-email-error"
+                  className="feedback-enter text-[11px] font-mono text-red-500 dark:text-red-400"
+                >
                   {fieldErrors.email}
                 </p>
               )}
@@ -229,15 +341,18 @@ export default function Contact() {
                 placeholder="Hi Prince, let's connect about..."
                 aria-invalid={Boolean(fieldErrors.message)}
                 aria-describedby={fieldErrors.message ? 'contact-message-error' : undefined}
-                className={`w-full bg-white dark:bg-zinc-950/50 border text-zinc-950 dark:text-white rounded p-3 text-xs font-mono transition-colors duration-150 resize-none outline-none ${
+                className={`w-full bg-white dark:bg-zinc-950/50 border text-zinc-950 dark:text-white rounded p-3 text-xs font-mono transition-[border-color,background-color] duration-[160ms] ease-out resize-none outline-none ${
                   fieldErrors.message
                     ? 'border-red-500/70 focus:border-red-500'
-                    : 'border-zinc-200 dark:border-zinc-900 focus:border-zinc-400 dark:focus:border-zinc-700'
+                    : 'border-zinc-200 dark:border-zinc-900 focus:border-zinc-500 dark:focus:border-zinc-600'
                 }`}
                 disabled={isSubmitting}
               />
               {fieldErrors.message && (
-                <p id="contact-message-error" className="text-[11px] font-mono text-red-500 dark:text-red-400">
+                <p
+                  id="contact-message-error"
+                  className="feedback-enter text-[11px] font-mono text-red-500 dark:text-red-400"
+                >
                   {fieldErrors.message}
                 </p>
               )}
@@ -245,30 +360,33 @@ export default function Contact() {
 
             <div className="pt-2">
               <button
+                ref={submitButtonRef}
                 type="submit"
                 disabled={isSubmitting}
-                className={`group w-full flex items-center justify-center gap-2 text-xs font-mono py-3 px-4 rounded transition-colors duration-150 font-medium cursor-pointer ${
+                className={`group w-full flex items-center justify-center gap-2 text-xs font-mono py-3 px-4 rounded transition-colors duration-[170ms] ease-out font-medium cursor-pointer will-change-transform ${
                   isSuccess
                     ? 'bg-emerald-600 text-white'
                     : 'bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black disabled:bg-zinc-100 disabled:text-zinc-400 dark:disabled:bg-zinc-900 dark:disabled:text-zinc-600'
                 }`}
               >
-                {isSubmitting ? (
-                  <>
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Sending Message...</span>
-                  </>
-                ) : isSuccess ? (
-                  <>
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Message Sent Successfully</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Send Message</span>
-                    <ArrowRight className="w-3.5 h-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
-                  </>
-                )}
+                <span data-magnetic-inner className="inline-flex items-center gap-2">
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Sending Message...</span>
+                    </>
+                  ) : isSuccess ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 feedback-enter" />
+                      <span>Message Sent Successfully</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Send Message</span>
+                      <ArrowRight className="w-3.5 h-3.5 transition-transform duration-[170ms] ease-out group-hover:translate-x-1" />
+                    </>
+                  )}
+                </span>
               </button>
             </div>
 
@@ -276,7 +394,7 @@ export default function Contact() {
               <div
                 role="alert"
                 aria-live="polite"
-                className="flex items-start gap-2.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-400 p-4 rounded text-xs font-mono mt-3"
+                className="feedback-enter flex items-start gap-2.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-400 p-4 rounded text-xs font-mono mt-3"
               >
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <div>
