@@ -13,6 +13,7 @@
 :root {
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-out-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out-smooth: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 /* Custom Scrollbar */
@@ -66,16 +67,7 @@ body {
 }
 
 /* Motion System Keyframes */
-@keyframes hero-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes hero-rise {
+@keyframes route-enter-in {
   from {
     opacity: 0;
     transform: translateY(8px);
@@ -86,10 +78,43 @@ body {
   }
 }
 
+@keyframes route-vt-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes route-vt-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes feedback-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes tab-panel-in {
   from {
     opacity: 0;
-    transform: translateY(5px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -106,10 +131,19 @@ body {
   }
 }
 
+@keyframes modal-backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 @keyframes modal-dialog-in {
   from {
     opacity: 0;
-    transform: translateY(6px) scale(0.985);
+    transform: translateY(8px) scale(0.96);
   }
   to {
     opacity: 1;
@@ -117,42 +151,62 @@ body {
   }
 }
 
-/* Hero subtle staggered entrance */
-.hero-fade {
-  animation: hero-fade-in 300ms var(--ease-out-smooth) both;
+@keyframes modal-dialog-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
 }
 
-.hero-rise {
-  animation: hero-rise 340ms var(--ease-out-expo) both;
+/* Route View Transitions & Fallback */
+.site-header {
+  view-transition-name: site-header;
 }
 
-.hero-delay-1 {
-  animation-delay: 35ms;
+::view-transition-old(site-header),
+::view-transition-new(site-header) {
+  animation: none;
 }
 
-.hero-delay-2 {
-  animation-delay: 70ms;
+::view-transition-group(project-hero-image) {
+  animation-duration: 320ms;
+  animation-timing-function: var(--ease-out-smooth);
 }
 
-.hero-delay-3 {
-  animation-delay: 105ms;
+::view-transition-old(project-hero-image),
+::view-transition-new(project-hero-image) {
+  height: 100%;
+  object-fit: cover;
 }
 
-.hero-delay-4 {
-  animation-delay: 135ms;
+::view-transition-old(root) {
+  animation: route-vt-out 180ms var(--ease-out-smooth) both;
 }
 
-.hero-delay-5 {
-  animation-delay: 170ms;
+::view-transition-new(root) {
+  animation: route-vt-in 260ms var(--ease-out-expo) both;
 }
 
-/* Scroll-triggered section reveal */
+.route-enter {
+  animation: route-enter-in 250ms var(--ease-out-expo) both;
+}
+
+/* Inline feedback reveal */
+.feedback-enter {
+  animation: feedback-slide-in 180ms var(--ease-out-expo) both;
+}
+
+/* Fallback subtle section reveal (GSAP overrides progressively when enabled) */
 .reveal-item {
   opacity: 0;
   transform: translateY(8px);
   transition:
-    opacity 420ms var(--ease-out-expo),
-    transform 420ms var(--ease-out-expo);
+    opacity 450ms var(--ease-out-expo),
+    transform 450ms var(--ease-out-expo);
   transition-delay: var(--reveal-delay, 0ms);
 }
 
@@ -161,29 +215,116 @@ body {
   transform: translateY(0);
 }
 
-/* Project category switch animation */
+/* Project category switch fallback */
 .project-grid-enter {
-  animation: tab-panel-in 210ms var(--ease-out-smooth) both;
+  animation: tab-panel-in 220ms var(--ease-out-smooth) both;
 }
 
-/* Modal transitions */
+/* Pointer-only card lift and image zoom (static on touch devices) */
+.project-card-surface {
+  transition: border-color 260ms var(--ease-out-smooth), transform 280ms var(--ease-out-smooth);
+}
+
+.project-card-media {
+  transition: transform 320ms var(--ease-out-expo);
+}
+
+.project-card-arrow {
+  transition: transform 190ms var(--ease-out-smooth);
+}
+
+/* Monochrome + Emerald Hairline Cursor Spotlight (Vercel-style internal radial mask, zero outer glow) */
+.spotlight-card {
+  position: relative;
+  --spot-x: 50%;
+  --spot-y: 50%;
+  --spot-active: 0;
+}
+
+.spotlight-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: radial-gradient(
+    240px circle at var(--spot-x) var(--spot-y),
+    rgba(16, 185, 129, 0.34),
+    rgba(24, 24, 27, 0.22) 45%,
+    transparent 75%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: var(--spot-active);
+  transition: opacity 220ms var(--ease-out-smooth);
+  z-index: 20;
+}
+
+.dark .spotlight-card::after {
+  background: radial-gradient(
+    260px circle at var(--spot-x) var(--spot-y),
+    rgba(16, 185, 129, 0.42),
+    rgba(255, 255, 255, 0.28) 42%,
+    transparent 75%
+  );
+}
+
+/* Interactive Hero kinetic headline word underline & hover dim discipline */
+@media (hover: hover) and (pointer: fine) {
+  .hero-kinetic-group:hover .hero-kinetic-line:not(:hover) {
+    opacity: 0.62;
+  }
+
+  .hero-kinetic-line {
+    transition:
+      opacity 220ms var(--ease-out-smooth),
+      transform 260ms var(--ease-out-expo);
+  }
+
+  .hero-kinetic-line:hover {
+    transform: translateX(6px);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .project-card-surface:hover {
+    transform: translateY(-2.5px);
+  }
+
+  .project-card-surface:hover .project-card-media {
+    transform: scale(1.03);
+  }
+
+  .project-card-link:hover .project-card-arrow {
+    transform: translateX(3.5px);
+  }
+}
+
+/* Modal transitions (open + reverse close) */
 .modal-backdrop-enter {
-  animation: modal-backdrop-in 180ms ease-out both;
+  animation: modal-backdrop-in 200ms var(--ease-out-smooth) both;
+}
+
+.modal-backdrop-exit {
+  animation: modal-backdrop-out 190ms var(--ease-out-smooth) both;
 }
 
 .modal-dialog-enter {
-  animation: modal-dialog-in 210ms var(--ease-out-expo) both;
+  animation: modal-dialog-in 220ms var(--ease-out-expo) both;
+}
+
+.modal-dialog-exit {
+  animation: modal-dialog-out 190ms var(--ease-out-smooth) both;
 }
 
 /* Education timeline progress line */
 .timeline-progress-line {
   transform-origin: top;
   transform: scaleY(0);
-  transition: transform 650ms var(--ease-out-expo);
-}
-
-.timeline-progress-line.is-visible {
-  transform: scaleY(1);
 }
 
 /* Reduced motion support */
@@ -192,11 +333,19 @@ body {
     scroll-behavior: auto !important;
   }
 
-  .hero-fade,
-  .hero-rise,
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-group(project-hero-image) {
+    animation: none !important;
+  }
+
+  .route-enter,
+  .feedback-enter,
   .project-grid-enter,
   .modal-backdrop-enter,
-  .modal-dialog-enter {
+  .modal-backdrop-exit,
+  .modal-dialog-enter,
+  .modal-dialog-exit {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
@@ -209,8 +358,26 @@ body {
     transition: none !important;
   }
 
-  .timeline-progress-line,
-  .timeline-progress-line.is-visible {
+  .project-card-surface,
+  .project-card-media,
+  .project-card-arrow {
+    transition: none !important;
+  }
+
+  .project-card-surface:hover,
+  .project-card-surface:hover .project-card-media,
+  .project-card-link:hover .project-card-arrow,
+  .hero-kinetic-line,
+  .hero-kinetic-group:hover .hero-kinetic-line:not(:hover) {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  .spotlight-card::after {
+    display: none !important;
+  }
+
+  .timeline-progress-line {
     transform: scaleY(1) !important;
     transition: none !important;
   }
