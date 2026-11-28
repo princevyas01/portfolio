@@ -28,6 +28,18 @@ const certificationsData = [
       'Completed coursework covering PyTorch architectures including CNNs, Transformers, GANs, Autoencoders, and Diffusion models.',
   },
   {
+    id: 10,
+    name: 'Fundamentals of Google Cloud Program (5 Google Cloud Badges)',
+    type: 'course',
+    issuer: 'Google Cloud / GeeksforGeeks',
+    date: null,
+    credentialId: null,
+    verificationLink: null,
+    previewImage: '/certificates/google_cloud_fundamentals_gfg.png',
+    previewText:
+      'Completed the Fundamentals of Google Cloud program presented in collaboration with GeeksforGeeks and Google, earning 5 Google Cloud badges.',
+  },
+  {
     id: 1,
     name: 'Oracle Cloud Infrastructure 2025 Certified AI Foundations Associate',
     type: 'professional',
@@ -395,10 +407,12 @@ export default function Certifications() {
                     <CheckCircle className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
                     <span>{cert.issuer}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs font-mono text-zinc-500">
-                    <Calendar className="w-3.5 h-3.5 shrink-0" />
-                    <span>{cert.date}</span>
-                  </div>
+                  {cert.date && (
+                    <div className="flex items-center gap-2 text-xs font-mono text-zinc-500">
+                      <Calendar className="w-3.5 h-3.5 shrink-0" />
+                      <span>{cert.date}</span>
+                    </div>
+                  )}
                   {cert.credentialId && (
                     <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-500">
                       <Hash className="w-3.5 h-3.5 shrink-0" />
